@@ -1,11 +1,11 @@
 package com.example.demo;
 
+import com.example.demo.model.ConditionAtom;
+import com.example.demo.model.Rlc;
 import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -13,9 +13,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.annotation.EnableKafkaStreams;
 import org.springframework.kafka.annotation.KafkaStreamsDefaultConfiguration;
-import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.config.KafkaStreamsConfiguration;
-import org.springframework.kafka.core.*;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaAdmin;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +38,7 @@ public class KafkaConfig {
         Map<String, Object> props = new HashMap<>();
         props.put(APPLICATION_ID_CONFIG, "streams-app");
         props.put(BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
+        props.put(COMMIT_INTERVAL_MS_CONFIG, 0);
         props.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
         props.put(DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
 
@@ -49,17 +53,27 @@ public class KafkaConfig {
     }
 
     @Bean
-    public NewTopic inputTopic() {
-        return new NewTopic("input-topic", 1, (short) 1);
+    public NewTopic conditionTopic() {
+        return new NewTopic("condition", 1, (short) 1);
     }
 
     @Bean
-    public NewTopic outputTopic() {
-        return new NewTopic("output-topic", 1, (short) 1);
+    public NewTopic aggregatedConditionTopic() {
+        return new NewTopic("aggregated-condition", 1, (short) 1);
     }
 
     @Bean
-    public ProducerFactory<String, String> producerFactory() {
+    public NewTopic rlcTopic() {
+        return new NewTopic("rlc", 1, (short) 1);
+    }
+
+    @Bean
+    public NewTopic matchedConditionTopic() {
+        return new NewTopic("matched-condition", 1, (short) 1);
+    }
+
+    @Bean
+    public ProducerFactory<String, ConditionAtom> conditionProducerFactory() {
         Map<String, Object> configProps = new HashMap<>();
         configProps.put(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
@@ -69,37 +83,32 @@ public class KafkaConfig {
                 StringSerializer.class);
         configProps.put(
                 ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                StringSerializer.class);
+                JsonSerializer.class);
         return new DefaultKafkaProducerFactory<>(configProps);
     }
 
     @Bean
-    public KafkaTemplate<String, String> kafkaTemplate() {
-        return new KafkaTemplate<>(producerFactory());
-    }
-
-    @Bean
-    public ConsumerFactory<String, String> consumerFactory() {
-        Map<String, Object> props = new HashMap<>();
-        props.put(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG,
+    public ProducerFactory<String, Rlc> rlcProducerFactory() {
+        Map<String, Object> configProps = new HashMap<>();
+        configProps.put(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,
                 bootstrapAddress);
-        props.put(
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                StringDeserializer.class);
-        props.put(
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                StringDeserializer.class);
-        return new DefaultKafkaConsumerFactory<>(props);
+        configProps.put(
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
+                StringSerializer.class);
+        configProps.put(
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
+                JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(configProps);
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, String>
-    kafkaListenerContainerFactory() {
+    public KafkaTemplate<String, ConditionAtom> conditionTemplate() {
+        return new KafkaTemplate<>(conditionProducerFactory());
+    }
 
-        ConcurrentKafkaListenerContainerFactory<String, String> factory =
-                new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory());
-        return factory;
+    @Bean
+    public KafkaTemplate<String, Rlc> rlcTemplate() {
+        return new KafkaTemplate<>(rlcProducerFactory());
     }
 }
