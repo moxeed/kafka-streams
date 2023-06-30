@@ -24,10 +24,19 @@ public class RlcJoiner {
         var conditionSerDes = Serdes.serdeFrom(new JsonSerializer<>(), new JsonDeserializer<>(ConditionAtom.class));
         var aggregatedConditionSerDes = Serdes.serdeFrom(new JsonSerializer<>(), new JsonDeserializer<>(AggregatedCondition.class));
 
-        var table = streamsBuilder.table("aggregated-condition", Consumed.with(Serdes.String(), aggregatedConditionSerDes));
         var stream = streamsBuilder.stream("rlc", Consumed.with(Serdes.String(), rlcSerDes));
+        var table = streamsBuilder.table("condition", Consumed.with(Serdes.String(), conditionSerDes));
 
-        stream.join(table, (rlc, conditionAtoms) -> conditionAtoms)
+        var aggregatedConditionKTable = table
+                .groupBy(KeyValue::new, Grouped.valueSerde(conditionSerDes))
+                .aggregate(AggregatedCondition::new, (s, conditionAtom, conditionAtoms) -> {
+                            conditionAtoms.add(conditionAtom);
+                            return conditionAtoms;
+                        }, (s, conditionAtom, conditionAtoms) -> conditionAtoms
+                        , Materialized.with(Serdes.String(), aggregatedConditionSerDes)
+                );
+
+        stream.join(aggregatedConditionKTable, (rlc, conditionAtoms) -> conditionAtoms)
                 .flatMapValues((conditionAtoms) -> conditionAtoms)
                 .to("matched-condition", Produced.valueSerde(conditionSerDes));
     }
