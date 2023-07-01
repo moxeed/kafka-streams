@@ -15,8 +15,9 @@ public class ConditionProducer {
         atom.value = 200;
         atom.operation = ">";
 
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 10000; i++) {
             atom.instrumentIdentifier = "inst" + (i % 10);
+            atom.atomId = i;
             kafkaTemplate.send("condition", atom.instrumentIdentifier + atom.field, atom);
         }
     }

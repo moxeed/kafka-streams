@@ -5,4 +5,6 @@ public class ConditionAtom {
     public String field;
     public String operation;
     public int value;
+    public int atomId;
+    public int conditionId;
 }

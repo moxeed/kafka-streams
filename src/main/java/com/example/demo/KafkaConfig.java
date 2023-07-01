@@ -7,6 +7,7 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -37,10 +38,10 @@ public class KafkaConfig {
     @Bean(name = KafkaStreamsDefaultConfiguration.DEFAULT_STREAMS_CONFIG_BEAN_NAME)
     KafkaStreamsConfiguration kStreamsConfig() {
         Map<String, Object> props = new HashMap<>();
-        props.put(APPLICATION_ID_CONFIG, "streams-app");
+        props.put(APPLICATION_ID_CONFIG, "streams-app1");
         props.put(BOOTSTRAP_SERVERS_CONFIG, bootstrapAddress);
         props.put(COMMIT_INTERVAL_MS_CONFIG, 100);
-        props.put(CACHE_MAX_BYTES_BUFFERING_DOC, 10 * 1024 * 1024L);
+        props.put(CACHE_MAX_BYTES_BUFFERING_DOC, 512 * 1024 * 1024L);
         props.put(DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
         props.put(DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass().getName());
 
@@ -57,11 +58,6 @@ public class KafkaConfig {
     @Bean
     public NewTopic conditionTopic() {
         return new NewTopic("condition", 1, (short) 1);
-    }
-
-    @Bean
-    public NewTopic aggregatedConditionTopic() {
-        return new NewTopic("aggregated-condition", 1, (short) 1);
     }
 
     @Bean
